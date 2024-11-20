@@ -6,7 +6,7 @@ import app.models as models
 from app.database import engine, SessionLocal
 
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 
 app.add_middleware(
     CORSMiddleware,

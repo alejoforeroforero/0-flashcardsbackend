@@ -1,22 +1,25 @@
 from fastapi import FastAPI, HTTPException, Depends
+from decouple import config
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 import app.models as models
+
 from app.database import engine, SessionLocal
 
 
 app = FastAPI(root_path="/api")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:8081"],  
+    allow_origins=config('ALLOWED_ORIGINS', cast=lambda v: [
+                         s.strip() for s in v.split(',')]),
     allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"],  
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 models.Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()
@@ -25,13 +28,16 @@ def get_db():
     finally:
         db.close()
 
+
 class Card(BaseModel):
     front: str = Field(min_length=1)
     back: str = Field(min_length=1)
 
+
 @app.get('/')
 def read_cards(db: Session = Depends(get_db)):
     return db.query(models.Card).all()
+
 
 @app.post('/')
 def create_card(card: Card, db: Session = Depends(get_db)):
@@ -43,7 +49,8 @@ def create_card(card: Card, db: Session = Depends(get_db)):
     db.commit()
     return card
 
-@app.put('/{id}')
+
+@app.put('/{card_id}')
 def update_info(card_id: int, card: Card, db: Session = Depends(get_db)):
 
     car_model = db.query(models.Card).filter(models.Card.id == card_id).first()
@@ -56,14 +63,15 @@ def update_info(card_id: int, card: Card, db: Session = Depends(get_db)):
     car_model.front = card.front
     car_model.back = card.back
 
-
     db.add(car_model)
     db.commit()
     return card
 
-@app.delete('/{id}')
+
+@app.delete('/{card_id}')
 def delete_info(card_id: int, db: Session = Depends(get_db)):
-    card_model = db.query(models.Card).filter(models.Card.id == card_id).first()
+    card_model = db.query(models.Card).filter(
+        models.Card.id == card_id).first()
 
     if card_model is None:
         raise HTTPException(
